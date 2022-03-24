@@ -7,18 +7,20 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sceneryback/jtt808/codec/protocol"
 	"github.com/sceneryback/jtt808/utils"
 )
 
 type headerCodec struct {
 }
 
-func (c *headerCodec) Encode(h *Header) ([]byte, error) {
+func (c *headerCodec) Encode(h *protocol.Header) ([]byte, error) {
 	var res []byte
 
 	var msgIdBuf bytes.Buffer
 	err := binary.Write(&msgIdBuf, binary.BigEndian, h.MessageId)
 	if err != nil {
+		logger.Errorf("failed to write message id: %s", err)
 		return nil, err
 	}
 	res = append(res, msgIdBuf.Bytes()...)
@@ -36,6 +38,7 @@ func (c *headerCodec) Encode(h *Header) ([]byte, error) {
 	var attrBuf bytes.Buffer
 	err = binary.Write(&attrBuf, binary.BigEndian, attr)
 	if err != nil {
+		logger.Errorf("failed to write attr: %s", err)
 		return nil, err
 	}
 	res = append(res, attrBuf.Bytes()...)
@@ -52,6 +55,7 @@ func (c *headerCodec) Encode(h *Header) ([]byte, error) {
 	var serialNumBuf bytes.Buffer
 	err = binary.Write(&serialNumBuf, binary.BigEndian, h.SerialNum)
 	if err != nil {
+		logger.Errorf("failed to write serial number: %s", err)
 		return nil, err
 	}
 	res = append(res, serialNumBuf.Bytes()...)
@@ -61,11 +65,13 @@ func (c *headerCodec) Encode(h *Header) ([]byte, error) {
 
 		err = binary.Write(&totalSegsBuf, binary.BigEndian, &h.SegInfo.TotalSegments)
 		if err != nil {
+			logger.Errorf("failed to write total segments: %s", err)
 			return nil, err
 		}
 
 		err = binary.Write(&segSeqBuf, binary.BigEndian, &h.SegInfo.SegmentNum)
 		if err != nil {
+			logger.Errorf("failed to write segment number: %s", err)
 			return nil, err
 		}
 
@@ -76,8 +82,8 @@ func (c *headerCodec) Encode(h *Header) ([]byte, error) {
 	return res, nil
 }
 
-func (c *headerCodec) Decode(h []byte) (*Header, error) {
-	var header Header
+func (c *headerCodec) Decode(h []byte) (*protocol.Header, error) {
+	var header protocol.Header
 
 	var msgIdBytes = h[:2]
 	var msgAttrBytes = h[2:4]
@@ -86,22 +92,25 @@ func (c *headerCodec) Decode(h []byte) (*Header, error) {
 
 	err := binary.Read(bytes.NewReader(msgIdBytes), binary.BigEndian, &header.MessageId)
 	if err != nil {
+		logger.Errorf("failed to read message id: %s", err)
 		return nil, err
 	}
 
 	phoneStr := strings.TrimPrefix(utils.DecodeBCD(phoneBytes), "0")
 	phone, err := strconv.ParseUint(phoneStr, 10, 64)
 	if err != nil {
+		logger.Errorf("failed to parse phone %s: %s", phoneStr, err)
 		return nil, err
 	}
 	header.Phone = phone
 
 	err = binary.Read(bytes.NewReader(serialNumBytes), binary.BigEndian, &header.SerialNum)
 	if err != nil {
+		logger.Errorf("failed to read serial number: %s", err)
 		return nil, err
 	}
 
-	header.Attr = &BodyAttr{}
+	header.Attr = &protocol.BodyAttr{}
 	header.Attr.Preserved = uint8(msgAttrBytes[0] >> 6)
 	if (msgAttrBytes[0]&0x20)>>5 == 1 {
 		header.Attr.SegmentationEnabled = true
@@ -110,12 +119,11 @@ func (c *headerCodec) Decode(h []byte) (*Header, error) {
 	if encrypt == 1 {
 		header.Attr.EncryptionMethod = "RSA"
 	}
-	// 0x0149
-	//0000 0001 0100 1001
-	//0000 0011
+
 	var attr uint16
 	err = binary.Read(bytes.NewBuffer(msgAttrBytes), binary.BigEndian, &attr)
 	if err != nil {
+		logger.Errorf("failed to read message attr: %s", err)
 		return nil, err
 	}
 	header.Attr.BodyLength = attr & 0x03ff
@@ -123,14 +131,16 @@ func (c *headerCodec) Decode(h []byte) (*Header, error) {
 	if header.Attr.SegmentationEnabled {
 		var segmentBytes = h[12:]
 
-		header.SegInfo = &SegmentInfo{}
+		header.SegInfo = &protocol.SegmentInfo{}
 
 		err = binary.Read(bytes.NewReader(segmentBytes[:2]), binary.BigEndian, &header.SegInfo.TotalSegments)
 		if err != nil {
+			logger.Errorf("failed to read total segments: %s", err)
 			return nil, err
 		}
 		err = binary.Read(bytes.NewReader(segmentBytes[2:]), binary.BigEndian, &header.SegInfo.SegmentNum)
 		if err != nil {
+			logger.Errorf("failed to read segment number: %s", err)
 			return nil, err
 		}
 	}

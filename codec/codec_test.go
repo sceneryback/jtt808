@@ -2,9 +2,9 @@ package codec
 
 import (
 	"encoding/hex"
-	"fmt"
-	"github.com/bmizerany/assert"
 	"testing"
+
+	"github.com/bmizerany/assert"
 )
 
 func TestCodec_Decode(t *testing.T) {
@@ -15,7 +15,8 @@ func TestCodec_Decode(t *testing.T) {
 	data, _ := hex.DecodeString(str)
 	msg, err := c.Decode(data)
 	assert.Equal(t, nil, err)
-	fmt.Println(msg.Human())
+	msgStr, _ := msg.Human()
+	t.Log(msgStr)
 }
 
 func TestDecodeHeaderMsgAttr(t *testing.T) {

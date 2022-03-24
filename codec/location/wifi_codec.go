@@ -1,4 +1,4 @@
-package codec
+package location
 
 import (
 	"bytes"
@@ -8,13 +8,14 @@ import (
 )
 
 type Wifi struct {
-	MacAddress     string
-	SignalStrength uint8
+	MacAddress     string `json:"MAC 地址,omitempty"`
+	SignalStrength uint8  `json:"信号强度,omitempty"`
 }
 
 type AdditionalInfoWifis struct {
-	Wifis []*Wifi
-	Raw   []byte
+	Wifis []*Wifi `json:"WiFi 列表,omitempty"`
+
+	data []byte
 }
 
 func (a *AdditionalInfoWifis) Id() uint8 {
@@ -26,7 +27,7 @@ func (a *AdditionalInfoWifis) Length() uint8 {
 }
 
 func (a *AdditionalInfoWifis) Info() []byte {
-	return a.Raw
+	return a.data
 }
 
 func (a *AdditionalInfoWifis) Human() string {
@@ -46,7 +47,7 @@ type wifiCodec struct {
 
 func (w *wifiCodec) Decode(data []byte) (*AdditionalInfoWifis, error) {
 	var wifis = AdditionalInfoWifis{
-		Raw: data,
+		data: data,
 	}
 
 	wifisNum := int(data[0])
